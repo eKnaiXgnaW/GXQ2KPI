@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPI 精确测算工具 v2.0</title>
+    <title>KPI 精确测算工具 v3.0</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 10px; color: #333; }
         .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 600px; margin: auto; }
@@ -15,7 +15,7 @@
         .target-info { font-size: 0.7rem; color: #777; display: block; margin-top: 3px; }
         .highlight { color: #d35400; font-weight: bold; }
         .gap-box { font-size: 0.72rem; color: #27ae60; margin-top: 4px; line-height: 1.2; }
-        .warning { color: #e74c3c; font-weight: bold; }
+        .warning { color: #e74c3c; font-size: 0.72rem; font-weight: bold; }
         .result-panel { position: sticky; bottom: 0; background: #fff; border-top: 3px solid #d35400; padding: 15px; margin-top: 20px; text-align: center; border-radius: 0 0 12px 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
         .score-big { font-size: 2.2rem; font-weight: bold; color: #d35400; display: block; }
     </style>
@@ -23,13 +23,13 @@
 <body>
 
 <div class="card">
-    <h2>高新支行市场 Q2KPI测算</h2>
+    <h2>高新支行市场经理 Q2KPI测算</h2>
     <table>
         <thead>
             <tr>
                 <th width="42%">指标</th>
                 <th width="28%">实际</th>
-                <th width="30%">结果</th>
+                <th width="30%">结果分析</th>
             </tr>
         </thead>
         <tbody id="kpiBody"></tbody>
@@ -51,8 +51,8 @@
         { name: '一户多开完成率', weight: 0.05, target: 60, unit: '%', type: 'normal' },
         { name: '场景获客新客', weight: 0.03, target: 8, unit: '户', type: 'normal' },
         { name: '有交易自收单', weight: 0.03, target: 5, unit: '户', type: 'normal' },
-        { name: '代发承接超额', weight: 0.03, target: 395, unit: '户', type: 'extra' },
-        { name: '信用卡超额', weight: 0.02, target: 23, unit: '户', type: 'extra' },
+        { name: '代发承接超额', weight: 0.03, target: 263, unit: '户', type: 'extra' }, // 目标修正为263
+        { name: '信用卡超额', weight: 0.02, target: 15, unit: '户', type: 'extra' },  // 目标修正为15
         { name: '合规经营', weight: 0.15, target: 100, unit: '%', type: 'strict' },
         { name: '风险合规', weight: 0.15, target: 100, unit: '%', type: 'strict' },
         { name: '分行主管评分', weight: 1, type: 'add', range: [-5, 5] }
@@ -62,7 +62,7 @@
 
     config.forEach((item, index) => {
         const tr = document.createElement('tr');
-        let infoStr = item.type === 'add' ? `范围: ${item.range[0]}~${item.range[1]}分` : `目标: ${item.target}${item.unit}`;
+        let infoStr = item.type === 'add' ? `范围: ${item.range[0]}~${item.range[1]}分` : `基准: ${item.target}${item.unit}`;
         if(item.type === 'extra') infoStr += ` (150%起分)`;
         
         tr.innerHTML = `
@@ -70,7 +70,7 @@
                 <strong>${item.name}</strong>
                 <span class="target-info">${infoStr}<br>权重: ${item.type==='add'?'加分':(item.weight*100)+'%'}</span>
             </td>
-            <td><input type="number" id="val${index}" oninput="calculate()" placeholder="输入"></td>
+            <td><input type="number" id="val${index}" oninput="calculate()" placeholder="填数"></td>
             <td id="res${index}">-</td>
         `;
         tbody.appendChild(tr);
@@ -88,24 +88,24 @@
                 itemScore = Math.min(Math.max(val, item.range[0]), item.range[1]);
                 statusHtml = `得分: <span class="highlight">${itemScore.toFixed(1)}</span>`;
             } else if (item.type === 'extra') {
-                // 超额指标逻辑：150%起分，300%满分
+                // 超额专项逻辑
                 let rate = val / item.target;
-                let finalRate = 0;
-                let gapToMax = (item.target * 3) - val;
+                let startPoint = item.target * 1.5;
+                let fullPoint = item.target * 3.0;
 
                 if (rate <= 1.5) {
-                    finalRate = 0;
-                    let startPoint = item.target * 1.5;
-                    statusHtml = `达成率: ${(rate*100).toFixed(1)}%<br><span class="warning">未起分</span><br><div class="gap-box">距起分还差: ${(startPoint - val).toFixed(1)}</div>`;
+                    itemScore = 0;
+                    statusHtml = `达成: ${(rate*100).toFixed(1)}%<br><span class="warning">未起分</span><br><div class="gap-box">距起分还差: ${(startPoint - val).toFixed(1)}</div>`;
                 } else {
-                    // 线性计算 (rate - 1.5) / (3.0 - 1.5)
-                    finalRate = Math.min((rate - 1.5) / 1.5, 1.0);
-                    itemScore = item.weight * finalRate * 100;
-                    let gapInfo = gapToMax > 0 ? `满分缺口: ${gapToMax.toFixed(1)}` : `已满分`;
-                    statusHtml = `达成率: ${(rate*100).toFixed(1)}%<br>得分: <span class="highlight">${itemScore.toFixed(2)}</span><br><div class="gap-box">${gapInfo}</div>`;
+                    // (当前达成率 - 1.5) / (3.0 - 1.5)
+                    let linearFactor = Math.min((rate - 1.5) / 1.5, 1.0);
+                    itemScore = item.weight * linearFactor * 100;
+                    let gapToMax = fullPoint - val;
+                    let gapInfo = gapToMax > 0 ? `满分缺口: ${gapToMax.toFixed(1)}` : `已达300%满分`;
+                    statusHtml = `达成: ${(rate*100).toFixed(1)}%<br>得分: <span class="highlight">${itemScore.toFixed(2)}</span><br><div class="gap-box">${gapInfo}</div>`;
                 }
             } else {
-                // 普通指标逻辑 (-50% to 150%) 或 合规指标 (0% to 100%)
+                // 普通指标
                 let rate = (item.unit === '%') ? (val / item.target) : (val / item.target);
                 let minL = item.type === 'strict' ? 0 : -0.5;
                 let maxL = item.type === 'strict' ? 1.0 : 1.5;
@@ -115,7 +115,7 @@
                 let gapHtml = '';
                 if (item.type !== 'strict') {
                     let gap = (item.target * 1.5) - val;
-                    gapHtml = `<div class="gap-box">${gap > 0 ? '满分缺口: '+gap.toFixed(1) : '已封顶'}</div>`;
+                    gapHtml = `<div class="gap-box">${gap > 0 ? '150%缺口: '+gap.toFixed(1) : '已封顶'}</div>`;
                 }
                 statusHtml = `达成: ${(rate*100).toFixed(1)}%<br>得分: <span class="highlight">${itemScore.toFixed(2)}</span><br>${gapHtml}`;
             }
@@ -124,6 +124,7 @@
             resCell.innerHTML = statusHtml;
         });
 
+        // 最终得分控制
         let finalScore = Math.min(Math.max(totalScore, 70), 130);
         document.getElementById('totalScore').innerText = finalScore.toFixed(2);
     }
