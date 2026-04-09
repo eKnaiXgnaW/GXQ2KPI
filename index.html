@@ -1,125 +1,161 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPI 精确测算工具</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 10px; color: #333; }
-        .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 600px; margin: auto; }
-        h2 { text-align: center; color: #d35400; font-size: 1.1rem; margin-bottom: 15px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { background: #f8f9fa; padding: 10px 5px; text-align: left; border-bottom: 2px solid #eee; }
-        td { padding: 10px 5px; border-bottom: 1px solid #eee; }
-        input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1rem; }
-        .target-info { font-size: 0.7rem; color: #666; display: block; margin-top: 4px; }
-        .highlight { color: #d35400; font-weight: bold; }
-        .gap-box { font-size: 0.75rem; color: #27ae60; }
-        .result-panel { position: sticky; bottom: 0; background: #fff; border-top: 3px solid #d35400; padding: 15px; margin-top: 20px; text-align: center; border-radius: 0 0 12px 12px; }
-        .score-big { font-size: 2.2rem; font-weight: bold; color: #d35400; display: block; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPI 精确测算工具</title>
+
+<style>
+body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 10px; color: #333; }
+.card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 600px; margin: auto; }
+h2 { text-align: center; color: #d35400; font-size: 1.1rem; margin-bottom: 15px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: #f8f9fa; padding: 10px 5px; text-align: left; border-bottom: 2px solid #eee; }
+td { padding: 10px 5px; border-bottom: 1px solid #eee; }
+input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1rem; }
+.target-info { font-size: 0.7rem; color: #666; display: block; margin-top: 4px; }
+.highlight { color: #d35400; font-weight: bold; }
+.gap-box { font-size: 0.75rem; color: #27ae60; }
+.result-panel { position: sticky; bottom: 0; background: #fff; border-top: 3px solid #d35400; padding: 15px; margin-top: 20px; text-align: center; border-radius: 0 0 12px 12px; }
+.score-big { font-size: 2.2rem; font-weight: bold; color: #d35400; display: block; }
+</style>
 </head>
+
 <body>
 
 <div class="card">
-    <h2>高新支行市场经理 Q2KPI达成测算</h2>
-    <table>
-        <thead>
-            <tr>
-                <th width="40%">指标名称</th>
-                <th width="30%">录入实际</th>
-                <th width="30%">计算结果</th>
-            </tr>
-        </thead>
-        <tbody id="kpiBody"></tbody>
-    </table>
+<h2>高新支行市场经理 Q2KPI达成测算</h2>
 
-    <div class="result-panel">
-        <div style="font-size: 0.9rem; color: #666;">预估总得分 (区间 70-130)</div>
-        <span class="score-big" id="totalScore">0.00</span>
-    </div>
+<table>
+<thead>
+<tr>
+<th width="40%">指标名称</th>
+<th width="30%">录入实际</th>
+<th width="30%">计算结果</th>
+</tr>
+</thead>
+<tbody id="kpiBody"></tbody>
+</table>
+
+<div class="result-panel">
+<div style="font-size: 0.9rem; color: #666;">预估总得分 (区间 70-130)</div>
+<span class="score-big" id="totalScore">0.00</span>
+</div>
 </div>
 
 <script>
-    // 基于图片数据的配置
-    const config = [
-        { name: '高质量代发推荐', weight: 0.14, target: 79, unit: '户' },
-        { name: '高质量代发承接', weight: 0.14, target: 263, unit: '户' },
-        { name: '新客千元户', weight: 0.12, target: 73, unit: '户' },
-        { name: '客户持续发薪率', weight: 0.04, target: 30, unit: '%' },
-        { name: '信用卡新户', weight: 0.10, target: 15, unit: '户' },
-        { name: '一户多开完成率', weight: 0.05, target: 60, unit: '%' },
-        { name: '场景获客新客', weight: 0.03, target: 8, unit: '户' },
-        { name: '有交易自收单', weight: 0.03, target: 5, unit: '户' },
-        { name: '代发承接超额', weight: 0.03, target: 395, unit: '户' },
-        { name: '信用卡超额', weight: 0.02, target: 23, unit: '户' },
-        { name: '合规经营', weight: 0.15, target: 100, unit: '%', isLimit: true },
-        { name: '风险合规', weight: 0.15, target: 100, unit: '%', isLimit: true },
-        { name: '分行主管评分', weight: 1, isAdd: true, range: [-5, 5] }
-    ];
+// ===== 工具函数（核心优化点） =====
 
-    const tbody = document.getElementById('kpiBody');
+// 百分比格式化（自动去掉多余0）
+function formatPercent(num) {
+    return parseFloat(num.toFixed(2)) + '%';
+}
+
+// 数字格式化
+function formatNum(num, digits = 2) {
+    return parseFloat(num.toFixed(digits));
+}
+
+// 安全取值
+function getVal(id) {
+    return parseFloat(document.getElementById(id).value) || 0;
+}
+
+// 权重显示（彻底避免精度问题）
+function formatWeight(w) {
+    return parseFloat((w * 100).toFixed(2)) + '%';
+}
+
+// ===== 配置 =====
+const config = [
+    { name: '高质量代发推荐', weight: 0.14, target: 79, unit: '户' },
+    { name: '高质量代发承接', weight: 0.14, target: 263, unit: '户' },
+    { name: '新客千元户', weight: 0.12, target: 73, unit: '户' },
+    { name: '客户持续发薪率', weight: 0.04, target: 30, unit: '%' },
+    { name: '信用卡新户', weight: 0.10, target: 15, unit: '户' },
+    { name: '一户多开完成率', weight: 0.05, target: 60, unit: '%' },
+    { name: '场景获客新客', weight: 0.03, target: 8, unit: '户' },
+    { name: '有交易自收单', weight: 0.03, target: 5, unit: '户' },
+    { name: '代发承接超额', weight: 0.03, target: 395, unit: '户' },
+    { name: '信用卡超额', weight: 0.02, target: 23, unit: '户' },
+    { name: '合规经营', weight: 0.15, target: 100, unit: '%', isLimit: true },
+    { name: '风险合规', weight: 0.15, target: 100, unit: '%', isLimit: true },
+    { name: '分行主管评分', weight: 1, isAdd: true, range: [-5, 5] }
+];
+
+const tbody = document.getElementById('kpiBody');
+
+// ===== 初始化表格 =====
+config.forEach((item, index) => {
+    const tr = document.createElement('tr');
+
+    let inputHtml = `<input type="number" id="val${index}" oninput="calculate()" placeholder="录入数据">`;
+
+    let infoHtml = item.isAdd
+        ? `区间: ${item.range[0]}到${item.range[1]}分`
+        : `目标: ${item.target}${item.unit}`;
+
+    tr.innerHTML = `
+        <td>
+            <strong>${item.name}</strong>
+            <span class="target-info">
+                ${infoHtml} (权重${item.isAdd ? '加减' : formatWeight(item.weight)})
+            </span>
+        </td>
+        <td>${inputHtml}</td>
+        <td id="res${index}" style="font-size: 0.75rem;">-</td>
+    `;
+    tbody.appendChild(tr);
+});
+
+// ===== 核心计算 =====
+function calculate() {
+    let totalScore = 0;
 
     config.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        let inputHtml = `<input type="number" id="val${index}" oninput="calculate()" placeholder="录入数据">`;
-        let infoHtml = item.isAdd ? `区间: ${item.range[0]}到${item.range[1]}分` : `目标: ${item.target}${item.unit}`;
-        
-        tr.innerHTML = `
-            <td>
-                <strong>${item.name}</strong>
-                <span class="target-info">${infoHtml} (权重${item.isAdd ? '加减' : (item.weight*100)+'%'})</span>
-            </td>
-            <td>${inputHtml}</td>
-            <td id="res${index}" style="font-size: 0.75rem;">-</td>
-        `;
-        tbody.appendChild(tr);
+        let inputVal = getVal(`val${index}`);
+        let displayRes = document.getElementById(`res${index}`);
+
+        if (item.isAdd) {
+            let score = Math.min(Math.max(inputVal, item.range[0]), item.range[1]);
+            totalScore += score;
+
+            displayRes.innerHTML = `得分: <span class="highlight">${formatNum(score,1)}</span>`;
+        } else {
+            let rate = item.unit === '%'
+                ? (inputVal / 100) / (item.target / 100)
+                : inputVal / item.target;
+
+            let limitMin = item.isLimit ? 0 : -0.5;
+            let limitMax = item.isLimit ? 1 : 1.5;
+
+            let finalRate = Math.min(Math.max(rate, limitMin), limitMax);
+            let itemScore = item.weight * finalRate * 100;
+
+            totalScore += itemScore;
+
+            // 满分缺口
+            let gapHtml = '';
+            if (!item.isLimit) {
+                let fullTarget = item.target * 1.5;
+                let gap = fullTarget - inputVal;
+
+                gapHtml = gap > 0
+                    ? `<div class="gap-box">满分缺口: ${formatNum(gap,1)}</div>`
+                    : `<div class="gap-box" style="color:#d35400">已达上限</div>`;
+            }
+
+            displayRes.innerHTML = `
+                达成: ${formatPercent(rate * 100)}<br>
+                得分: <span class="highlight">${formatNum(itemScore)}</span>
+                ${gapHtml}
+            `;
+        }
     });
 
-    function calculate() {
-        let totalScore = 0;
-        config.forEach((item, index) => {
-            let inputVal = parseFloat(document.getElementById(`val${index}`).value) || 0;
-            let displayRes = document.getElementById(`res${index}`);
-            
-            if (item.isAdd) {
-                // 处理主管评分
-                let score = Math.min(Math.max(inputVal, item.range[0]), item.range[1]);
-                totalScore += score;
-                displayRes.innerHTML = `得分: <span class="highlight">${score.toFixed(1)}</span>`;
-            } else {
-                // 处理达成率
-                let rate = inputVal / item.target;
-                if (item.unit === '%') { rate = (inputVal / 100) / (item.target / 100); }
-                
-                // 边界限制
-                let limitMin = item.isLimit ? 0 : -0.5;
-                let limitMax = item.isLimit ? 1 : 1.5;
-                let finalRate = Math.min(Math.max(rate, limitMin), limitMax);
-                
-                let itemScore = item.weight * finalRate * 100;
-                totalScore += itemScore;
-
-                // 计算150%满分缺口 (仅针对非合规项)
-                let gapHtml = '';
-                if (!item.isLimit) {
-                    let fullTarget = item.target * 1.5;
-                    let gap = fullTarget - inputVal;
-                    gapHtml = gap > 0 ? `<div class="gap-box">满分缺口: ${gap.toFixed(1)}</div>` : `<div class="gap-box" style="color:#d35400">已达上限</div>`;
-                }
-
-                displayRes.innerHTML = `
-                    达成: ${(rate * 100).toFixed(1)}%<br>
-                    得分: <span class="highlight">${itemScore.toFixed(2)}</span>
-                    ${gapHtml}
-                `;
-            }
-        });
-
-        // 总分锁定 70-130
-        let finalTotal = Math.min(Math.max(totalScore, 70), 130);
-        document.getElementById('totalScore').innerText = finalTotal.toFixed(2);
-    }
+    let finalTotal = Math.min(Math.max(totalScore, 70), 130);
+    document.getElementById('totalScore').innerText = formatNum(finalTotal);
+}
 </script>
 
 </body>
