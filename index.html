@@ -68,7 +68,7 @@
         tr.innerHTML = `
             <td>
                 <strong>${item.name}</strong>
-                <span class="target-info">${infoStr}<br>权重: ${item.type==='add'?'加分':(item.weight*100)+'%'}</span>
+                <span class="target-info">${infoStr}<br>权重: ${item.type==='add'?'加分':(item.weight*100).toFixed(0)+'%'}</span>
             </td>
             <td><input type="number" id="val${index}" oninput="calculate()" placeholder="填数"></td>
             <td id="res${index}">-</td>
